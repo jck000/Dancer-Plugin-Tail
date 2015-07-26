@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Dancer::Plugin::Tail</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- bootstrap and jQuery -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    
+    <script>
+      $(document).ready(function(){
+        setTimeout( gettail, 1000 );
+      });
+
+      $('#closebutton').on( 'click', function(e) {
+        e.preventDefault(); // preventing default click action
+        window.close();
+      });
+    
+      function gettail( ) {
+        var curr_pos = $('#pos').val();
+        var id   = $('#id').val();
+    
+        var tmphost = '/tail/' + id + '/' + curr_pos ;
+    
+        $.ajax({
+          url :         tmphost,
+          dataType :    'json',
+          type :        'get',
+          crossDomain : true,
+          async :       false,
+          cache :       false,
+          timeout:      5000,
+          error :     function(xhr, status, e) {
+                console.log("got an AJAX error: " + xhr.responseText);
+                console.log("Status:            " + status);
+    
+                $('#ajax_error').text(
+                    "An error ocurred while contacting server. "
+                        + xhr.responseText);
+    
+                if (status == 'timeout') {
+                  $('#ajax_error').text("Unable to reach server.");
+                }
+              },
+          success : function(json) {
+            var new_curr_pos = json.new_curr_pos;
+            if ( new_curr_pos != undefined ) {
+              $('#pos').val( new_curr_pos );
+            }
+    
+            var output   = json.output;
+            $('#tail').append( output );
+            $('html, body').scrollTop( $(document).height() );
+
+            var interval = json.interval;
+            setTimeout( gettail, interval );
+     
+          } // success  
+        }); // ajax
+    
+      } 
+    </script>
+
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+      
+        <form class="form-horizontal">
+          <fieldset>
+          
+            <!-- Form Name -->
+            <legend>Tail</legend>
+            
+            <div id="ajax_error"></div>
+            
+            <pre id=tail></pre>
+            
+            <div class="form-group">
+              <label class="col-md-4 control-label" for="closebutton"></label>
+              <div class="col-md-4">
+                <button id="closebutton" 
+                        name="closebutton" 
+                        class="btn btn-primary">
+                  Close Window
+                </button>
+              </div>
+            </div>
+            
+            <input type="hidden" id="id"  name="id"   value="xyz">
+            <input type="hidden" id="pos" name="_pos" value="0">
+          
+          </fieldset>
+        </form>
+      
+      </div>
+
+    </div> <!-- container -->
+  </body>
+</html>
