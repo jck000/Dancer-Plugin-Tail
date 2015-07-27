@@ -14,11 +14,11 @@ Dancer::Plugin::Tail - Tail a file from Dancer
 
 =head1 VERSION
 
-Version 0.0001
+Version 0.0002
 
 =cut
 
-our $VERSION = '0.0001';
+our $VERSION = '0.0002';
 
 =head1 SYNOPSIS
 
@@ -47,43 +47,52 @@ A sample HTML page is included in the samples directory.  Use it as an example t
 
 =cut
 
-
 # Generate a route based on configuration settings
-hook before => sub {
 
-  my $conf  = plugin_setting;
+my $conf  = plugin_setting;
 
-  get '/tail/:id/:curr_pos' => sub {
+get '/tail/:id/:curr_pos' => sub {
 
-    my $id       = params->{id};            # Id of file
-    my $curr_pos = params->{curr_pos} || 0; # Start reading from here
+  my $id       = params->{id};            # Id of file
+  my $curr_pos = params->{curr_pos} || 0; # Start reading from here
 
-    if ( defined $conf->{files}->{$id} ) {  # Only do it if the file is defined
-      my $log_file  = $conf->{files}->{$id};
+  if ( defined $conf->{files}->{$id} ) {  # Only do it if the file is defined
+    my $log_file  = $conf->{files}->{$id};
 
-      my $output;
+    debug "Tail file:$log_file";
 
-      open(my $IN, '<', $log_file);    # Open file for reading
-      my $file_end = tell($IN);        # Figure out the end of the file
+    my ($output, $whence);
 
-      if ( $curr_pos == 0 ) {          # Display name if first read
-        $output = "$log_file\n";
-      } else {
-        seek( $IN, $curr_pos, 1 );     # Seek the place where we were last
-        while ( my $line = <$IN> ) {   # Continue until end
-          $output .= $line ;
-        }
-      }
-      close($IN);
+    open(my $IN, '<', $log_file);    # Open file for reading
 
-      # Return JSON
-      to_json( { new_curr_pos => $file_end, 
-                 interval     => $conf->{interval},
-                 output       => $output } );
-    } else {
-      send_error('400');
+    # Add header if it's 1st request
+    if ( $curr_pos < 1 ) {
+      $output = "$log_file\n";
     }
-  };
+
+    # Determine where to start reading
+    if ( $curr_pos < 0 ) {
+      $whence = 2;             # Relative to current position
+    } else {
+      $whence = 1;             # Absolute current position
+    }
+
+    seek( $IN, $curr_pos, $whence );     # Seek the place where we were last
+    while ( my $line = <$IN> ) {         # Continue until end
+      $output .= $line ;
+    }
+
+    my $file_end = tell($IN);        # Figure out the end of the file
+    debug "File End: $file_end";
+    close($IN);
+
+    # Return JSON
+    to_json( { new_curr_pos => $file_end, 
+               interval     => $conf->{interval},
+               output       => $output } );
+  } else {
+    send_error('404');
+  }
 };
 
 register_plugin;
@@ -173,6 +182,15 @@ YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
 CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
 CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+=head1 SEE ALSO
+ 
+L<Dancer>
+ 
+L<Dancer::Plugin>
+ 
+=cut
 
 
 =cut
