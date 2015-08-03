@@ -7,6 +7,12 @@ use warnings FATAL => 'all';
 use Dancer ':syntax';
 use Dancer::Exception ':all';
 use Dancer::Plugin;
+use Dancer::Session;
+use String::Random;
+
+
+my $STRRand = String::Random->new;
+
 
 =head1 NAME
 
@@ -14,11 +20,11 @@ Dancer::Plugin::Tail - Tail a file from Dancer
 
 =head1 VERSION
 
-Version 0.0002
+Version 0.0003
 
 =cut
 
-our $VERSION = '0.0002';
+our $VERSION = '0.0003';
 
 =head1 SYNOPSIS
 
@@ -36,6 +42,7 @@ This plugin will allow you to tail a file from within Dancer.  It's designed to 
   plugins:
     tail:
       interval: 3000
+      tmpdir:   '/tmp'
       files:
         id1:    '/var/logs/access_log'
         id2:    '/var/logs/error_log'
@@ -56,14 +63,24 @@ get '/tail/:id/:curr_pos' => sub {
   my $id       = params->{id};            # Id of file
   my $curr_pos = params->{curr_pos} || 0; # Start reading from here
 
-  if ( defined $conf->{files}->{$id} ) {  # Only do it if the file is defined
-    my $log_file  = $conf->{files}->{$id};
+  my $log_file = '';
+
+  if ( defined $conf->{files}->{$id} ) {  # is it predefined?
+    $log_file = $conf->{files}->{$id};
+  } elsif ( session->{'tail_' . $id} ) {  # is it a temp file?
+    $log_file = session->{'tail_' . $id};
+  } else {
+    send_error('404');
+  }
+
+  # Only do it if the file is defined
+  if ( $log_file ne '' ) {
 
     debug "Tail file:$log_file";
 
     my ($output, $whence);
 
-    open(my $IN, '<', $log_file);    # Open file for reading
+    open(my $IN, '<', $log_file);         # Open file for reading
 
     # Add header if it's 1st request
     if ( $curr_pos < 1 ) {
@@ -72,17 +89,17 @@ get '/tail/:id/:curr_pos' => sub {
 
     # Determine where to start reading
     if ( $curr_pos < 0 ) {
-      $whence = 2;             # Relative to current position
+      $whence = 2;                        # Relative to current position
     } else {
-      $whence = 1;             # Absolute current position
+      $whence = 1;                        # Absolute current position
     }
 
-    seek( $IN, $curr_pos, $whence );     # Seek the place where we were last
-    while ( my $line = <$IN> ) {         # Continue until end
+    seek( $IN, $curr_pos, $whence );      # Seek the place where we were last
+    while ( my $line = <$IN> ) {          # Continue until end
       $output .= $line ;
     }
 
-    my $file_end = tell($IN);        # Figure out the end of the file
+    my $file_end = tell($IN);             # Figure out the end of the file
     debug "File End: $file_end";
     close($IN);
 
@@ -90,9 +107,20 @@ get '/tail/:id/:curr_pos' => sub {
     to_json( { new_curr_pos => $file_end, 
                interval     => $conf->{interval},
                output       => $output } );
-  } else {
-    send_error('404');
   }
+};
+
+=head1 C<temp_file_to_tail>
+
+=cut
+
+register temp_file_to_tail => sub {
+  my $file_id  = $STRRand->randregex( '[A-Za-z]{16}' ) . time;
+
+  my $log_file = $conf->{tmpdir} . '/' . $file_id ;
+  session 'tail_' . $file_id => $log_file;
+
+  return $file_id;
 };
 
 register_plugin;
@@ -190,9 +218,6 @@ L<Dancer>
  
 L<Dancer::Plugin>
  
-=cut
-
-
 =cut
 
 1; # End of Dancer::Plugin::Tail
