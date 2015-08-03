@@ -18,9 +18,18 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        #'ABC'              => 1.6,
-        #'Foo::Bar::Module' => 5.0401,
+        'String::Random'  => 0.26,
+        'File::Temp'      => 0.22,
+        'Dancer'          => 1.3099,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Dancer-Plugin-Tail-*' },
+    META_MERGE => {
+        resources => {
+            repository => 'https://github.com/jck000/Dancer-Plugin-Tail',
+            bugtracker => 'https://github.com/jck000/Dancer-Plugin-Tail/issues',
+            homepage   => 'https://github.com/jck000/Dancer-Plugin-Tail/',
+        },
+    },
 );
+

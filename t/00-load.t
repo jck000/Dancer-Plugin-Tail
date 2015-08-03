@@ -11,3 +11,5 @@ BEGIN {
 }
 
 diag( "Testing Dancer::Plugin::Tail $Dancer::Plugin::Tail::VERSION, Perl $], $^X" );
+
+
